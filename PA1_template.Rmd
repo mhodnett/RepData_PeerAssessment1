@@ -1,25 +1,141 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
+author: "Mark Hodnett"
 output: 
   html_document:
     keep_md: true
 ---
-
+Required libraries
+```{r, echo=TRUE}
+library(xtable)
+library(plyr)
+library(dplyr)
+```
 
 ## Loading and preprocessing the data
 
+Read the data
+```{r, echo=TRUE}
+df_In<-read.csv("activity.csv")
+```
 
+Lets look at the data
+```{r, echo=TRUE}
+dim(df_In)
+summary(df_In)
+head(df_In)
+nRowsIn<-nrow(df_In)
+```
+
+Remove na's, and summarise by day
+```{r, echo=TRUE}
+df<-df_In[complete.cases(df_In),]
+nRowsComplete<-nrow(df)
+nRowsNA<-nRowsIn-nRowsComplete
+steps_summary<-df[,c("date","steps")] %>% 
+  group_by(date) %>% 
+  summarise_each(funs(sum,mean,median))
+```
 
 ## What is mean total number of steps taken per day?
+```{r results="asis"}
+xt<-xtable(steps_summary)
+print(xt,type="html")
+```
 
-
+Histogram of the total number of steps taken each day
+```{r, echo=TRUE}
+hist(steps_summary$sum)
+```
 
 ## What is the average daily activity pattern?
+```{r results="asis"}
+xt<-xtable(steps_summary[,c("date","mean","median")])
+print(xt,type="html")
+```
 
+We might expect that the median to be the values at mid-day, but that is not the case.  
+The median is defined as: "place the numbers you are given in value order and find the middle number". So, it has ordered the steps by values (and NOT interval), and since most of the values are zero, then the median is zero.  
+But lets do the medians another way to verify
+```{r results="asis"}
+Medians <- aggregate(df$steps, by = list(df$date), FUN = median)
+xt<-xtable(Medians)
+print(xt,type="html")
+```
 
+by interval
+```{r results="asis"}
+int_summary<-df[,c("interval","steps")] %>% 
+  group_by(interval) %>% 
+  summarise_each(funs(mean))
+#xt<-xtable(int_summary)
+#print(xt,type="html")
+```
+
+Plot time-series
+```{r, echo=TRUE}
+plot(int_summary,type = "l")
+```
+
+Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r, echo=TRUE}
+df2<-data.frame(int_summary)
+nIndex<-which.max( df2[,"steps"] )
+df2[nIndex,]
+```
+
+The total number of rows is `r nRowsIn`.  
+The total number of rows with NAs is `r nRowsNA`.  
+The total number of rows without NAs is `r nRowsComplete`.  
 
 ## Imputing missing values
+Impute missing values in the dataset using the mean for that 5-minute interval.  
+Create a new dataset that is equal to the original dataset but with the missing data filled in.
+```{r, echo=TRUE}
+impute.mean <- function(x) replace(x, is.na(x), mean(x, na.rm = TRUE))
+df_Imputed<-ddply(df_In, ~ interval, transform, steps = impute.mean(steps))
+head(df_Imputed)
+steps_summaryImp<-df_Imputed[,c("date","steps")] %>% 
+  group_by(date) %>% 
+  summarise_each(funs(sum,mean,median))
+```
 
+Histogram of the total number of steps taken each day
+```{r, echo=TRUE}
+hist(steps_summaryImp$sum)
+```
 
+Total number of steps, mean and median steps taken per day (Imputed)
+```{r results="asis"}
+xt<-xtable(steps_summaryImp)
+print(xt,type="html")
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r results="asis"}
+df_Imputed$date<-as.Date(df_Imputed$date)
+head(df_Imputed)
+df_Imputed$daytype <- factor(weekdays(df_Imputed$date)=="Saturday" | weekdays(df_Imputed$date)=="Sunday")
+levels(df_Imputed$daytype)[levels(df_Imputed$daytype)=="TRUE"] <- "weekend"
+levels(df_Imputed$daytype)[levels(df_Imputed$daytype)=="FALSE"] <- "weekday"
+int_summarywd<-df_Imputed[df_Imputed$daytype=="weekday",c("interval","steps")] %>% 
+  group_by(interval) %>% 
+  summarise_each(funs(mean))
+int_summarywe<-df_Imputed[df_Imputed$daytype=="weekend",c("interval","steps")] %>% 
+  group_by(interval) %>% 
+  summarise_each(funs(mean))
+par(mfrow=c(2,1))
+```
+
+```{r fig.height=8}
+plot(int_summarywd,type = "l", main="Weekday")
+plot(int_summarywe,type = "l", main="Weekend")
+par(mfrow=c(1,1))
+```
+Yes, from the graphs above, I would conclude that there is a difference in activity patterns between weekdays and weekends  
+
+```{r results="asis"}
+# reset parameter
+par(mfrow=c(1,1))
+```
+
