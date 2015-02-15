@@ -54,15 +54,6 @@ xt<-xtable(steps_summary[,c("date","mean","median")])
 print(xt,type="html")
 ```
 
-We might expect that the median to be the values at mid-day, but that is not the case.  
-The median is defined as: "place the numbers you are given in value order and find the middle number". So, it has ordered the steps by values (and NOT interval), and since most of the values are zero, then the median is zero.  
-But lets do the medians another way to verify
-```{r results="asis"}
-Medians <- aggregate(df$steps, by = list(df$date), FUN = median)
-xt<-xtable(Medians)
-print(xt,type="html")
-```
-
 by interval
 ```{r results="asis"}
 int_summary<-df[,c("interval","steps")] %>% 
@@ -124,18 +115,13 @@ int_summarywd<-df_Imputed[df_Imputed$daytype=="weekday",c("interval","steps")] %
 int_summarywe<-df_Imputed[df_Imputed$daytype=="weekend",c("interval","steps")] %>% 
   group_by(interval) %>% 
   summarise_each(funs(mean))
-par(mfrow=c(2,1))
 ```
 
 ```{r fig.height=8}
+par(mfrow=c(2,1))
 plot(int_summarywd,type = "l", main="Weekday")
 plot(int_summarywe,type = "l", main="Weekend")
 par(mfrow=c(1,1))
 ```
 Yes, from the graphs above, I would conclude that there is a difference in activity patterns between weekdays and weekends  
-
-```{r results="asis"}
-# reset parameter
-par(mfrow=c(1,1))
-```
 
